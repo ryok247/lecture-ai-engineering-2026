@@ -139,11 +139,13 @@ def search(query: str) -> list[dict]:
 
 def relevance_score(query: str, page: dict) -> int:
     keywords = query.split()
-    text = page["title"] + " " + page["content"]
+    title_coef = 3
 
     count = 0
     for key in keywords:
-        if key in text:
+        if key in page["title"]:
+            count += title_coef
+        if key in page["content"]:
             count += 1
 
     return count
