@@ -186,6 +186,54 @@ def search_graph(query: str) -> dict:
 
 
 
+
+def search_hybrid(query: str, max_results: int = 8) -> dict:
+    """Vectorの上位ページと、Treeの章構造に沿う前後ページを返す。
+
+    1回のクエリ埋め込みだけを使用する。隣接ページは同一資料・同一章に限定し、
+    ページの重複を避け、追加理由を明示する。
+    """
+    seeds = search(query)
+    pages = load_pages(RAG_SOURCE)
+    by_id = {page["page_id"]: page for page in pages}
+    groups = defaultdict(list)
+    for page in pages:
+        groups[(page["document_id"], page["section"])].append(page)
+    positions = {}
+    for group in groups.values():
+        group.sort(key=lambda p: (p["page"], p["page_id"]))
+        for index, page in enumerate(group):
+            positions[page["page_id"]] = (group, index)
+
+    selected = {hit["page_id"] for hit in seeds}
+    additions = []
+    # 元の近傍順位を維持。隣接ページの距離は計算していないので推定しない。
+    for rank, hit in enumerate(seeds):
+        if hit["page_id"] not in positions:
+            continue
+        group, index = positions[hit["page_id"]]
+        for offset in (-1, 1):
+            neighbor_index = index + offset
+            if not 0 <= neighbor_index < len(group):
+                continue
+            neighbor = group[neighbor_index]
+            page_id = neighbor["page_id"]
+            if page_id in selected:
+                continue
+            selected.add(page_id)
+            additions.append({
+                **by_id[page_id],
+                "source_page_id": hit["page_id"],
+                "source_rank": rank + 1,
+                "reason": "same_section_previous" if offset < 0 else "same_section_next",
+            })
+    return {
+        "seeds": seeds[:max_results],
+        "expanded": additions[:max(0, max_results - len(seeds))],
+        "strategy": "vector_top_k_plus_tree_section_neighbors",
+    }
+
+
 def run_full_context(agent, question: str, model, instructions: str, prompt_template: str):
     """全資料を一括投入し、検索ツールを使わずに回答する。"""
     prompt = prompt_template.format(materials=get_all_materials(), question=question)
