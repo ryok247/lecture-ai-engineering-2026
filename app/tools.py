@@ -126,3 +126,21 @@ def search_graph(query: str) -> str:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
     except APIError as e:
         return json.dumps({"error": api_error_message(e.code)}, ensure_ascii=False)
+
+
+def search_hybrid_materials(query: str) -> str:
+    """Vector検索の上位ページに、Treeの同一章で前後にあるページを追加する。
+
+    章をまたいで説明を比較する質問に使う。seedsはVector検索結果、
+    expandedは同一章の前後ページ。両方の本文・PDFページを確認する。
+    """
+    import sqlite3
+    from google.genai.errors import APIError
+    from app.retrieval import search_hybrid
+
+    try:
+        return json.dumps(search_hybrid(query), ensure_ascii=False)
+    except (ValueError, OSError, sqlite3.Error) as e:
+        return json.dumps({"error": str(e)}, ensure_ascii=False)
+    except APIError as e:
+        return json.dumps({"error": api_error_message(e.code)}, ensure_ascii=False)
