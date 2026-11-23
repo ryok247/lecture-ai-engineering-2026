@@ -137,6 +137,18 @@ def search(query: str) -> list[dict]:
         """, (sqlite_vec.serialize_float32(vector), RAG_TOP_K))
         return [dict(row) for row in rows]
 
+def relevance_score(query: str, page: dict) -> int:
+    keywords = query.split()
+    title_coef = 3
+
+    count = 0
+    for key in keywords:
+        if key in page["title"]:
+            count += title_coef
+        if key in page["content"]:
+            count += 1
+
+    return count
 
 def search_graph(query: str) -> dict:
     """ベクトル検索を入口に、前後ページと共通用語で候補を広げる。"""
@@ -175,12 +187,21 @@ def search_graph(query: str) -> dict:
                 if neighbor not in pages or neighbor in seed_ids:
                     continue
                 frequency = max((len(adjacent[n]) for n in route if nodes[n]["kind"] == "term"), default=0)
-                priority = (len(route) - 1, frequency, rank, neighbor)
+                score = relevance_score(query, pages[neighbor])
+                hops = len(route) - 1
+
+                priority = (-score, hops, frequency, rank, neighbor)
                 candidate = {**pages[neighbor], "hops": len(route) - 1,
                              "path": [{"id": n, "title": nodes[n]["title"]} for n in route]}
                 if neighbor not in candidates or priority < candidates[neighbor][0]:
                     candidates[neighbor] = (priority, candidate)
     expanded = [candidate for _, candidate in sorted(candidates.values())]
+    # for priority, candidate in sorted(candidates.values()):
+    #     print(
+    #         priority,
+    #         candidate["page_id"],
+    #         candidate["title"],
+    #     )
     return {"seeds": results, "expanded": expanded[:max(0, GRAPH_MAX_RESULTS - len(results))],
             "max_hops": GRAPH_HOPS}
 
