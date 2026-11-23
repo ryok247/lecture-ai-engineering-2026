@@ -66,7 +66,7 @@ GRAPH_INSTRUCTIONS = """\
 - 宿題の答えそのものは書かず、考え方のヒントで導く。
 """
 
-HYBRID_INSTRUCTIONS = """\\
+HYBRID_INSTRUCTIONS = """\
 あなたはAIエンジニアリング講座（AIE2026）の学習支援エージェントです。
 - 対象は第1〜3回の本講義資料。search_hybrid_materials で関連ページを取得する。
 - seeds はベクトル検索したページ、expanded は同じ章の前後ページ。
